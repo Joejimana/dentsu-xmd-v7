@@ -54,12 +54,16 @@ async function requestPairingCode(phoneNumber) {
   }
 
   // Find a session not yet registered (best for pairing)
-  let targetSock = null;
-  let targetId   = null;
-  for (const [id, sock] of sessions) {
+  // Sessions are stored as { sock, wsReady } objects
+  let targetSock  = null;
+  let targetId    = null;
+  let targetReady = null;
+  for (const [id, entry] of sessions) {
+    const sock = entry?.sock ?? entry; // handle both new { sock } and legacy sock
     if (sock && !sock.authState?.creds?.registered) {
-      targetSock = sock;
-      targetId   = id;
+      targetSock  = sock;
+      targetId    = id;
+      targetReady = entry?.wsReady ?? null;
       break;
     }
   }
@@ -71,7 +75,21 @@ async function requestPairingCode(phoneNumber) {
   const cleanNum = phoneNumber.replace(/\D/g, '');
   if (!cleanNum || cleanNum.length < 7) throw new Error('Numéro de téléphone invalide.');
 
-  // requestPairingCode works as soon as the socket is created — no need to wait for "open"
+  // Wait for the WebSocket connection to WhatsApp to be established
+  // before calling requestPairingCode. Without this, the call can fail
+  // silently when the socket is still in the handshake phase.
+  if (targetReady) {
+    const WS_TIMEOUT_MS = 25000;
+    await Promise.race([
+      targetReady,
+      new Promise((_, rej) =>
+        setTimeout(() => rej(new Error(
+          'Connexion WhatsApp lente. Attends encore quelques secondes puis réessaie.'
+        )), WS_TIMEOUT_MS)
+      ),
+    ]);
+  }
+
   const code = await targetSock.requestPairingCode(cleanNum);
   return { code, sessionId: targetId };
 }
