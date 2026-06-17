@@ -4124,22 +4124,50 @@ async function EmpirePair(number, res) {
         handleMessageRevocation(socket, sanitizedNumber);
 
         if (!socket.authState.creds.registered) {
-            let retries = config.MAX_RETRIES;
+            // Attendre le signal WhatsApp (événement QR) avant de demander le code
             let code;
-            while (retries > 0) {
-                try {
-                    await delay(5000); // Laisser le socket se connecter à WhatsApp
-                    code = await socket.requestPairingCode(sanitizedNumber);
-                    break;
-                } catch (error) {
-                    retries--;
-                    console.warn(`Failed to request pairing code (${retries} retries left): ${error.message}`);
-                    await delay(2000 * (config.MAX_RETRIES - retries));
-                }
+            try {
+                code = await new Promise((resolve, reject) => {
+                    let settled = false;
+                    const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
+
+                    // Timeout 30 secondes
+                    const timer = setTimeout(() => {
+                        settle(reject, new Error('WhatsApp timeout: aucune réponse en 30s'));
+                    }, 30000);
+
+                    socket.ev.on('connection.update', async (update) => {
+                        const { qr, connection } = update;
+
+                        // WhatsApp est prêt — on demande le code de parrainage au lieu du QR
+                        if (qr !== undefined && !settled) {
+                            clearTimeout(timer);
+                            try {
+                                const pairingCode = await socket.requestPairingCode(sanitizedNumber);
+                                console.log(`✅ Code obtenu pour ${sanitizedNumber}: ${pairingCode}`);
+                                settle(resolve, pairingCode);
+                            } catch (err) {
+                                console.error(`❌ requestPairingCode échoué: ${err.message}`);
+                                settle(reject, err);
+                            }
+                        }
+
+                        // Déjà connecté
+                        if (connection === 'open' && !settled) {
+                            clearTimeout(timer);
+                            settle(resolve, 'ALREADY_CONNECTED');
+                        }
+                    });
+                });
+            } catch (err) {
+                console.error(`❌ Pairing error pour ${sanitizedNumber}: ${err.message}`);
             }
+
             if (!res.headersSent) {
-                if (code) {
+                if (code && code !== 'ALREADY_CONNECTED') {
                     res.send({ code });
+                } else if (code === 'ALREADY_CONNECTED') {
+                    res.send({ code: 'ALREADY_PAIRED', status: 'already_paired', message: 'Session already active.' });
                 } else {
                     res.status(503).send({ error: 'Unable to generate pairing code. Try again.' });
                 }
