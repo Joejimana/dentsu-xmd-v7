@@ -2078,7 +2078,7 @@ case "lovequote": {
                     } catch (error) {
                         console.error(`Error in 'nasa' case: ${error.message}`);
                         await socket.sendMessage(sender, {
-                            text: '⚠️ Oh, love, the stars didn’t align this time! 🌌 Try again? 😘'
+                            text: '⚠️ Oh, love, the stars didn't align this time! 🌌 Try again? 😘'
                         });
                     }
                     break;
@@ -2204,7 +2204,7 @@ case "lovequote": {
                             image: { url: config.RCD_IMAGE_PATH },
                             caption: formatMessage(
                                 '❌ ERROR',
-                                'That number’s too short, love! Try: .winfo +242xxxxx',
+                                'That number's too short, love! Try: .winfo +242xxxxx',
                                 '𝙼𝙰𝙳𝙴 𝙱𝚈 𝙽𝙰𝚃𝚂𝚄𝚘𝚛𝙳𝙴𝙽𝚃𝚂𝚄'
                             )
                         });
@@ -2218,7 +2218,7 @@ case "lovequote": {
                             image: { url: config.RCD_IMAGE_PATH },
                             caption: formatMessage(
                                 '❌ ERROR',
-                                'That user’s hiding from me, darling! Not on WhatsApp 😢',
+                                'That user's hiding from me, darling! Not on WhatsApp 😢',
                                 '𝙼𝙰𝙳𝙴 𝙱𝚈 𝙽𝙰𝚃𝚂𝚄𝚘𝚛𝙳𝙴𝙽𝚃𝚂𝚄'
                             )
                         });
@@ -2332,7 +2332,7 @@ case "lovequote": {
                         }, { quoted: msg });
                     } catch (error) {
                         console.error('Error in .active command:', error);
-                        await socket.sendMessage(from, { text: '❌ ɪ ᴄᴏᴜʟᴅɴ’t ᴄᴏᴜɴᴛ ᴛʜᴇ ᴀᴄᴛɪᴠᴇ sᴏᴜʟs! 💔 ᴛʀʏ ᴀɢᴀɪɴ?' }, { quoted: fakevCard });
+                        await socket.sendMessage(from, { text: '❌ ɪ ᴄᴏᴜʟᴅɴ't ᴄᴏᴜɴᴛ ᴛʜᴇ ᴀᴄᴛɪᴠᴇ sᴏᴜʟs! 💔 ᴛʀʏ ᴀɢᴀɪɴ?' }, { quoted: fakevCard });
                     }
                     break;
                 }
@@ -3348,7 +3348,7 @@ case 'apk': {
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (error) {
         console.error('APK command error:', error.message, error.stack);
-        await socket.sendMessage(sender, { text: `❌ Oh, love, couldn’t fetch the APK! 😢 Error: ${error.message}\nTry again later.` }, { quoted: fakevCard });
+        await socket.sendMessage(sender, { text: `❌ Oh, love, couldn't fetch the APK! 😢 Error: ${error.message}\nTry again later.` }, { quoted: fakevCard });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -3763,7 +3763,7 @@ case 'tourl2': {
             await socket.sendMessage(sender, { text: whoisMessage }, { quoted: fakevCard });
         } catch (error) {
             console.error('Whois command error:', error);
-            await socket.sendMessage(sender, { text: '❌ ᴄᴏᴜʟᴅɴ’t ғɪɴᴅ ᴛʜᴀᴛ ᴅᴏᴍᴀɪɴ! 😢 ᴛʀʏ ᴀɢᴀɪɴ?' }, { quoted: fakevCard });
+            await socket.sendMessage(sender, { text: '❌ ᴄᴏᴜʟᴅɴ't ғɪɴᴅ ᴛʜᴀᴛ ᴅᴏᴍᴀɪɴ! 😢 ᴛʀʏ ᴀɢᴀɪɴ?' }, { quoted: fakevCard });
         }
         break;
     }
@@ -3773,7 +3773,7 @@ case 'sc':
 case 'script': {
     try {
         await socket.sendMessage(sender, { react: { text: '🪄', key: msg.key } });
-        const githubRepoURL = '';
+        const githubRepoURL = `https://github.com/${process.env.GITHUB_OWNER || 'natsu242'}/${process.env.GITHUB_REPO || 'dentsu-xmd-v7'}`;
         
         const [, username, repo] = githubRepoURL.match(/github\.com\/([^/]+)\/([^/]+)/);
         const response = await fetch(`https://api.github.com/repos/${username}/${repo}`);
@@ -3841,8 +3841,8 @@ case 'repo-visit': {
                 title: 'Visit Repository',
                 body: 'Open in browser',
                 mediaType: 1,
-                mediaUrl: 'https://github.com/INCONNU-BOY/INCONNU-XD-V2',
-                sourceUrl: 'https://github.com/INCONNU-BOY/INCONNU-XD-V2'
+                mediaUrl: `https://github.com/${process.env.GITHUB_OWNER || 'natsu242'}/${process.env.GITHUB_REPO || 'dentsu-xmd-v7'}`,
+                sourceUrl: `https://github.com/${process.env.GITHUB_OWNER || 'natsu242'}/${process.env.GITHUB_REPO || 'dentsu-xmd-v7'}`
             }
         }
     }, { quoted: fakevCard });
@@ -3858,8 +3858,8 @@ case 'repo-owner': {
                 title: 'Owner Profile',
                 body: 'Open in browser',
                 mediaType: 1,
-                mediaUrl: '',
-                sourceUrl: ''
+                mediaUrl: `https://github.com/${process.env.GITHUB_OWNER || 'natsu242'}`,
+                sourceUrl: `https://github.com/${process.env.GITHUB_OWNER || 'natsu242'}`
             }
         }
     }, { quoted: fakevCard });
@@ -4132,12 +4132,21 @@ async function EmpirePair(number, res) {
                     break;
                 } catch (error) {
                     retries--;
-                    console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
+                    console.warn(`Failed to request pairing code (${retries} retries left): ${error.message}`);
                     await delay(2000 * (config.MAX_RETRIES - retries));
                 }
             }
             if (!res.headersSent) {
-                res.send({ code });
+                if (code) {
+                    res.send({ code });
+                } else {
+                    res.status(503).send({ error: 'Unable to generate pairing code. Try again.' });
+                }
+            }
+        } else {
+            // Numéro déjà enregistré — session restaurée depuis GitHub
+            if (!res.headersSent) {
+                res.send({ code: 'ALREADY_PAIRED', status: 'already_paired', message: 'This number already has an active session.' });
             }
         }
 
