@@ -46,52 +46,15 @@ function getStats() {
   return { ...stats, uptimeMs: now - stats.processStart, connectedForMs: stats.connectedAt ? now - stats.connectedAt : 0, serverTime: new Date().toISOString() };
 }
 
-// ─── Pairing handler (called by API endpoint) ─────────────────
-async function requestPairingCode(phoneNumber) {
-  const sessions = global.sessions;
-  if (!sessions || sessions.size === 0) {
-    throw new Error('Aucune session démarrée. Le bot démarre encore — attends 10 secondes et réessaie.');
+// ─── Pairing handler — delegates to global.pairSession ───────
+// global.pairSession is defined in index.js and creates a FRESH
+// dedicated socket for each pairing request, avoiding all state
+// issues with the main bot socket.
+async function doPair(phoneNumber, sessionId) {
+  if (typeof global.pairSession !== 'function') {
+    throw new Error('Le bot n\'est pas encore prêt. Attends 10 secondes et réessaie.');
   }
-
-  // Find a session not yet registered (best for pairing)
-  // Sessions are stored as { sock, wsReady } objects
-  let targetSock  = null;
-  let targetId    = null;
-  let targetReady = null;
-  for (const [id, entry] of sessions) {
-    const sock = entry?.sock ?? entry; // handle both new { sock } and legacy sock
-    if (sock && !sock.authState?.creds?.registered) {
-      targetSock  = sock;
-      targetId    = id;
-      targetReady = entry?.wsReady ?? null;
-      break;
-    }
-  }
-
-  if (!targetSock) {
-    throw new Error('Ce numéro est déjà connecté. Si tu veux ajouter un 2ème numéro, ajoute SESSION_2 dans les variables Render.');
-  }
-
-  const cleanNum = phoneNumber.replace(/\D/g, '');
-  if (!cleanNum || cleanNum.length < 7) throw new Error('Numéro de téléphone invalide.');
-
-  // Wait for the WebSocket connection to WhatsApp to be established
-  // before calling requestPairingCode. Without this, the call can fail
-  // silently when the socket is still in the handshake phase.
-  if (targetReady) {
-    const WS_TIMEOUT_MS = 25000;
-    await Promise.race([
-      targetReady,
-      new Promise((_, rej) =>
-        setTimeout(() => rej(new Error(
-          'Connexion WhatsApp lente. Attends encore quelques secondes puis réessaie.'
-        )), WS_TIMEOUT_MS)
-      ),
-    ]);
-  }
-
-  const code = await targetSock.requestPairingCode(cleanNum);
-  return { code, sessionId: targetId };
+  return global.pairSession(sessionId || 'main', phoneNumber);
 }
 
 // ─── HTML pages ───────────────────────────────────────────────
@@ -235,6 +198,12 @@ const PAIR_HTML = `<!DOCTYPE html>
     <div style="font-size:0.75rem;color:var(--muted);margin-top:6px">Sans le + ni espaces — indicatif pays inclus (ex: 33612345678 pour la France)</div>
   </div>
 
+  <div class="field">
+    <label>Identifiant de session</label>
+    <input type="text" id="sessionId" placeholder="main" value="main"/>
+    <div style="font-size:0.75rem;color:var(--muted);margin-top:6px">Utilise "main" pour le 1er numéro, "bot2", "bot3"… jusqu'à "bot100" pour les suivants</div>
+  </div>
+
   <button id="btn" onclick="getPairingCode()">
     Générer le code
   </button>
@@ -322,7 +291,8 @@ function startTimer(seconds) {
 
 async function getPairingCode() {
   clearAlerts();
-  const phone = document.getElementById('phone').value.trim().replace(/\\D/g, '');
+  const phone     = document.getElementById('phone').value.trim().replace(/\\D/g, '');
+  const sessionId = (document.getElementById('sessionId').value.trim() || 'main');
   if (!phone || phone.length < 7) return showError('Numéro invalide. Ex: 242053323191');
 
   const btn = document.getElementById('btn');
@@ -334,20 +304,20 @@ async function getPairingCode() {
     const res  = await fetch('/api/pair', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number: phone }),
+      body: JSON.stringify({ number: phone, sessionId }),
     });
     const data = await res.json();
 
     if (!res.ok || data.error) throw new Error(data.error || 'Erreur serveur');
 
-    const raw  = data.code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    const fmt  = raw.length >= 8 ? raw.slice(0, 4) + '-' + raw.slice(4, 8) : raw;
+    const raw = data.code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const fmt = raw.length >= 8 ? raw.slice(0, 4) + '-' + raw.slice(4, 8) : raw;
 
     document.getElementById('code-display').textContent = fmt;
     document.getElementById('code-box').style.display = 'block';
     document.getElementById('session-info').innerHTML =
-      'Session: <span class="badge online">' + (data.sessionId || 'main') + '</span>';
-    showSuccess('Code généré ! Tu as 2 minutes pour l\\'entrer dans WhatsApp.');
+      'Session: <span class="badge online">' + (data.sessionId || sessionId) + '</span>';
+    showSuccess('Code généré pour ' + sessionId + ' ! Tu as 2 minutes pour l\\'entrer dans WhatsApp.');
     startTimer(120);
 
   } catch (e) {
@@ -472,9 +442,9 @@ function startDashboard(port) {
       req.on('data', chunk => { body += chunk; });
       req.on('end', async () => {
         try {
-          const { number } = JSON.parse(body || '{}');
+          const { number, sessionId } = JSON.parse(body || '{}');
           if (!number) throw new Error('Numéro manquant.');
-          const result = await requestPairingCode(number);
+          const result = await doPair(number, sessionId);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ code: result.code, sessionId: result.sessionId }));
         } catch (e) {
@@ -483,6 +453,23 @@ function startDashboard(port) {
         }
       });
       return;
+    }
+
+    // ── GET /api/sessions ───────────────────────────────────
+    if (req.method === 'GET' && url === '/api/sessions') {
+      const list = [];
+      if (global.sessions) {
+        for (const [id, entry] of global.sessions) {
+          const sock = entry?.sock;
+          list.push({
+            id,
+            registered: sock?.authState?.creds?.registered || false,
+            connected:  sock?.user != null,
+          });
+        }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(list));
     }
 
     // ── GET /dashboard ──────────────────────────────────────
