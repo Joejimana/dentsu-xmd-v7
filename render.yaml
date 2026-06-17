@@ -4,22 +4,14 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node index.js
     healthCheckPath: /
     envVars:
-      - key: SESSION_ID
+      - key: GITHUB_TOKEN
         sync: false
-      - key: SESSION_2
-        sync: false
-      - key: AUTOREAD_ENABLED
-        value: "false"
-      - key: AUTOTYPING_ENABLED
-        value: "false"
-      - key: AUTORECORD_ENABLED
-        value: "false"
-      - key: AUTOLIKE_ENABLED
-        value: "false"
-      - key: DASHBOARD_PORT
-        value: "10000"
+      - key: GITHUB_OWNER
+        value: "natsu242"
+      - key: GITHUB_REPO
+        value: "dentsu-xmd-v7"
       - key: PORT
         value: "10000"
