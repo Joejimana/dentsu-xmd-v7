@@ -4,7 +4,7 @@ module.exports = {
 
   PREFIX: ".",
 
-  OWNER: ["242053323191", "242065121108"],
+  OWNER: ["237677588087"],
   OWNER_NAME: "Natsu Tech / Dev <>",
 
   PACK_NAME: "DENTSU XMD Stickers",
@@ -12,8 +12,8 @@ module.exports = {
 
   SESSION_ID: process.env.SESSION_ID || "",
 
-  AUTOREAD_ENABLED:   process.env.AUTOREAD_ENABLED   === "true",
-  AUTOTYPING_ENABLED: process.env.AUTOTYPING_ENABLED === "true",
-  AUTORECORD_ENABLED: process.env.AUTORECORD_ENABLED === "true",
-  AUTOLIKE_ENABLED:   process.env.AUTOLIKE_ENABLED   === "true",
+  AUTOREAD_ENABLED:   process.env.AUTOREAD_ENABLED   === "false",
+  AUTOTYPING_ENABLED: process.env.AUTOTYPING_ENABLED === "false",
+  AUTORECORD_ENABLED: process.env.AUTORECORD_ENABLED === "false",
+  AUTOLIKE_ENABLED:   process.env.AUTOLIKE_ENABLED   === "false",
 };
